@@ -120,6 +120,9 @@ func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 	for _, ck := range cacheKeyList {
 		ck := ck
 		key := c.keyFunc(ck.col)
+		if !slicing.InRange(c.dataList, ck.src) {
+			return nil, fmt.Errorf("Build Cache: index out of range %v, data len %d", ck, len(c.dataList))
+		}
 		data := c.dataList[ck.src]
 		eg.Go(func() error {
 			logger.G().Debug("Build Cache: begin %v", ck)
@@ -127,7 +130,7 @@ func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 			idx, err := NewIndex(ctx, data, key)
 			logger.G().Debug("Build Cache: end %v", ck)
 			if err != nil {
-				return fmt.Errorf("Build cache: %w loc %v", err, ck)
+				return fmt.Errorf("Build Cache: %w loc %v", err, ck)
 			}
 			resC <- &resItem{
 				key: ck,
@@ -138,7 +141,7 @@ func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 	}
 
 	if err := eg.Wait(); err != nil {
-		return nil, fmt.Errorf("Build cache: %w", err)
+		return nil, fmt.Errorf("Build Cache: %w", err)
 	}
 	close(resC)
 
