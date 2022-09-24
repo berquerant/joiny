@@ -1,6 +1,7 @@
 package joiner_test
 
 import (
+	"context"
 	"io"
 	"sort"
 	"strings"
@@ -147,7 +148,7 @@ func TestJoiner(t *testing.T) {
 						tc.rel,
 					}),
 					",",
-				).Build()
+				).Build(context.TODO())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -155,7 +156,7 @@ func TestJoiner(t *testing.T) {
 				j := joiner.NewRelationJoiner(cache)
 				s := joiner.NewSelector(cache)
 				got := []string{}
-				for x := range j.FullJoin(tc.rel) {
+				for x := range j.FullJoin(context.TODO(), tc.rel) {
 					v, err := s.Select(tc.tgt, x.Sorted())
 					if err != nil {
 						t.Fatal(err)
@@ -320,7 +321,7 @@ func TestJoiner(t *testing.T) {
 					g.readSeekers(),
 					joiner.RelationListToLocationList(tc.key.RelationList),
 					",",
-				).Build()
+				).Build(context.TODO())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -328,7 +329,7 @@ func TestJoiner(t *testing.T) {
 				s := joiner.NewSelector(cache)
 				j := joiner.New(joiner.NewRelationJoiner(cache))
 				got := []string{}
-				for x := range j.Join(tc.key) {
+				for x := range j.Join(context.TODO(), tc.key) {
 					v, err := s.Select(tc.tgt, x.Sorted())
 					if err != nil {
 						t.Fatal(err)

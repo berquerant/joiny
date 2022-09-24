@@ -1,6 +1,7 @@
 package joiner_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/berquerant/joiny/cc/target"
@@ -115,10 +116,10 @@ type mockIndex struct {
 	v map[string]string
 }
 
-func (*mockIndex) KeyFunc() joiner.KeyFunc            { return nil }
-func (*mockIndex) Scan() <-chan joiner.ScannedItem    { return nil }
-func (*mockIndex) Get(_ string) ([]joiner.Item, bool) { return nil, false }
-func (*mockIndex) AllItems() <-chan joiner.Item       { return nil }
+func (*mockIndex) KeyFunc() joiner.KeyFunc                          { return nil }
+func (*mockIndex) Scan(_ context.Context) <-chan joiner.ScannedItem { return nil }
+func (*mockIndex) Get(_ string) ([]joiner.Item, bool)               { return nil, false }
+func (*mockIndex) AllItems(_ context.Context) <-chan joiner.Item    { return nil }
 func (m *mockIndex) Read(item joiner.Item) (joiner.ScannedItem, error) {
 	// find line by key
 	return joiner.NewScannedItem(m.v[item.Key()], item), nil

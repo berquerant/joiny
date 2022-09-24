@@ -1,9 +1,11 @@
 package joiner
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
+	"github.com/berquerant/joiny/async"
 	"github.com/berquerant/joiny/cc/joinkey"
 	"github.com/berquerant/logger"
 	"golang.org/x/exp/slices"
@@ -49,10 +51,10 @@ func (s SelectItemList) Sorted() []SelectItem {
 
 type RelationJoiner interface {
 	// FullJoin links records with cross join.
-	FullJoin(rel *joinkey.Relation) <-chan SelectItemList
+	FullJoin(ctx context.Context, rel *joinkey.Relation) <-chan SelectItemList
 	// Join links given rows and the other records.
 	// Fallback to FullJoin if rowC is nil.
-	Join(rel *joinkey.Relation, rowC <-chan SelectItemList) <-chan SelectItemList
+	Join(ctx context.Context, rel *joinkey.Relation, rowC <-chan SelectItemList) <-chan SelectItemList
 }
 
 func NewRelationJoiner(cache Cache) RelationJoiner {
@@ -65,7 +67,7 @@ type relationJoiner struct {
 	cache Cache
 }
 
-func (r *relationJoiner) FullJoin(rel *joinkey.Relation) <-chan SelectItemList {
+func (r *relationJoiner) FullJoin(ctx context.Context, rel *joinkey.Relation) <-chan SelectItemList {
 	resultC := make(chan SelectItemList, 100)
 	go func() {
 		defer close(resultC)
@@ -82,7 +84,7 @@ func (r *relationJoiner) FullJoin(rel *joinkey.Relation) <-chan SelectItemList {
 		}
 
 		// cross join for all items
-		for lItem := range lIndex.AllItems() {
+		for lItem := range lIndex.AllItems(ctx) {
 			rItemList, ok := rIndex.Get(lItem.Key())
 			if !ok {
 				continue
@@ -90,6 +92,9 @@ func (r *relationJoiner) FullJoin(rel *joinkey.Relation) <-chan SelectItemList {
 			list := make(SelectItemList)
 			list.Set(NewSelectItem(lKey.Src, lItem))
 			for _, rItem := range rItemList {
+				if async.Done(ctx) {
+					return
+				}
 				l := list.Clone()
 				l.Set(NewSelectItem(rKey.Src, rItem))
 				logger.G().Debug("FullJoin: %v %v %v", lKey, rKey, l)
@@ -100,9 +105,9 @@ func (r *relationJoiner) FullJoin(rel *joinkey.Relation) <-chan SelectItemList {
 	return resultC
 }
 
-func (r *relationJoiner) Join(rel *joinkey.Relation, rowC <-chan SelectItemList) <-chan SelectItemList {
+func (r *relationJoiner) Join(ctx context.Context, rel *joinkey.Relation, rowC <-chan SelectItemList) <-chan SelectItemList {
 	if rowC == nil {
-		return r.FullJoin(rel)
+		return r.FullJoin(ctx, rel)
 	}
 
 	resultC := make(chan SelectItemList, 100)
@@ -126,6 +131,9 @@ func (r *relationJoiner) Join(rel *joinkey.Relation, rowC <-chan SelectItemList)
 			sources []int
 		)
 		for row := range rowC {
+			if async.Done(ctx) {
+				return
+			}
 			baseInfo := func() string { return fmt.Sprintf("lkey %v rkey %v row %v", lKey, rKey, row) }
 			logger.G().Debug("Join check: %s", baseInfo())
 
@@ -222,7 +230,7 @@ func (r *relationJoiner) Join(rel *joinkey.Relation, rowC <-chan SelectItemList)
 }
 
 type Joiner interface {
-	Join(key *joinkey.JoinKey) <-chan SelectItemList
+	Join(ctx context.Context, key *joinkey.JoinKey) <-chan SelectItemList
 }
 
 func New(relJoiner RelationJoiner) Joiner {
@@ -235,7 +243,7 @@ type joinerImpl struct {
 	relJoiner RelationJoiner
 }
 
-func (j *joinerImpl) Join(key *joinkey.JoinKey) <-chan SelectItemList {
+func (j *joinerImpl) Join(ctx context.Context, key *joinkey.JoinKey) <-chan SelectItemList {
 	if len(key.RelationList) == 0 {
 		logger.G().Error("Joiner: empty key")
 		resultC := make(chan SelectItemList)
@@ -245,7 +253,7 @@ func (j *joinerImpl) Join(key *joinkey.JoinKey) <-chan SelectItemList {
 
 	var resultC <-chan SelectItemList
 	for _, k := range key.RelationList {
-		resultC = j.relJoiner.Join(k, resultC)
+		resultC = j.relJoiner.Join(ctx, k, resultC)
 	}
 	return resultC
 }

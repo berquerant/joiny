@@ -1,6 +1,7 @@
 package joiner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -52,7 +53,7 @@ type Location interface {
 }
 
 type CacheBuilder interface {
-	Build() (Cache, error)
+	Build(ctx context.Context) (Cache, error)
 }
 
 func RelationListToLocationList(relationList []*joinkey.Relation) []Location {
@@ -89,7 +90,7 @@ type cacheBuilder struct {
 
 const cacheBuilderThread = 4
 
-func (c *cacheBuilder) Build() (Cache, error) {
+func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 	logger.G().Debug("BuilderBuildCache: start, %d sources %d locations", len(c.dataList), len(c.locationList))
 	startAt := time.Now()
 
@@ -123,7 +124,7 @@ func (c *cacheBuilder) Build() (Cache, error) {
 		eg.Go(func() error {
 			logger.G().Debug("Build Cache: begin %v", ck)
 			// need lock because seek the file
-			idx, err := NewIndex(data, key)
+			idx, err := NewIndex(ctx, data, key)
 			logger.G().Debug("Build Cache: end %v", ck)
 			if err != nil {
 				return fmt.Errorf("Build cache: %w loc %v", err, ck)

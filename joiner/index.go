@@ -2,6 +2,7 @@ package joiner
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -37,17 +38,17 @@ type Index interface {
 	KeyFunc() KeyFunc
 	Get(key string) ([]Item, bool)
 	Read(item Item) (ScannedItem, error)
-	Scan() <-chan ScannedItem
-	AllItems() <-chan Item
+	Scan(ctx context.Context) <-chan ScannedItem
+	AllItems(ctx context.Context) <-chan Item
 }
 
-func NewIndex(data async.ReadSeeker, key KeyFunc) (Index, error) {
+func NewIndex(ctx context.Context, data async.ReadSeeker, key KeyFunc) (Index, error) {
 	s := &index{
 		data: data,
 		key:  key,
 		val:  make(map[string][]Item),
 	}
-	if err := s.init(); err != nil {
+	if err := s.init(ctx); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -59,7 +60,7 @@ type index struct {
 	val  itemListMap
 }
 
-func (idx *index) init() error {
+func (idx *index) init(ctx context.Context) error {
 	return idx.data.Do(func(data io.ReadSeeker) error {
 		if _, err := data.Seek(0, os.SEEK_SET); err != nil {
 			return fmt.Errorf("Index init: %w", err)
@@ -74,6 +75,9 @@ func (idx *index) init() error {
 			r         = bufio.NewReader(data)
 		)
 		for !isEOF {
+			if async.Done(ctx) {
+				return fmt.Errorf("Index init: %w", ctx.Err())
+			}
 			line, err := r.ReadBytes('\n')
 			isEOF = errors.Is(err, io.EOF)
 			if err != nil && !isEOF {
@@ -132,12 +136,15 @@ func (idx *index) Read(item Item) (ScannedItem, error) {
 	return result, nil
 }
 
-func (idx *index) Scan() <-chan ScannedItem {
+func (idx *index) Scan(ctx context.Context) <-chan ScannedItem {
 	resultC := make(chan ScannedItem, 100)
 	go func() {
 		defer close(resultC)
 		for _, itemList := range idx.val {
 			for _, item := range itemList {
+				if async.Done(ctx) {
+					return
+				}
 				r, err := idx.Read(item)
 				if err != nil {
 					logger.G().Error("Scan: failed to read %v, %v", item, err)
@@ -150,12 +157,15 @@ func (idx *index) Scan() <-chan ScannedItem {
 	return resultC
 }
 
-func (idx *index) AllItems() <-chan Item {
+func (idx *index) AllItems(ctx context.Context) <-chan Item {
 	resultC := make(chan Item, 100)
 	go func() {
 		defer close(resultC)
 		for _, itemList := range idx.val {
 			for _, item := range itemList {
+				if async.Done(ctx) {
+					return
+				}
 				resultC <- item
 			}
 		}

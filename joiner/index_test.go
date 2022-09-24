@@ -1,6 +1,7 @@
 package joiner_test
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"testing"
@@ -25,7 +26,7 @@ k2 v4
 	if _, err := f.Write([]byte(content)); err != nil {
 		t.Fatalf("write to tmp file %v", err)
 	}
-	index, err := joiner.NewIndex(async.NewReadSeeker(f), func(val string) (string, error) {
+	index, err := joiner.NewIndex(context.TODO(), async.NewReadSeeker(f), func(val string) (string, error) {
 		return strings.Split(val, " ")[0], nil
 	})
 	if err != nil {
@@ -84,7 +85,7 @@ k2 v4
 			"k2 v4",
 		}
 		got := []string{}
-		for item := range index.Scan() {
+		for item := range index.Scan(context.TODO()) {
 			got = append(got, item.Line())
 		}
 		sort.Strings(got)

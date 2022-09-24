@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
 
 	"github.com/berquerant/joiny/cc/joinkey"
@@ -109,14 +111,31 @@ var (
 func main() {
 	flag.Usage = Usage
 	flag.Parse()
-	if err := withFileList(run); err != nil {
-		logger.G().Error("%v", err)
-	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	doneC := make(chan struct{})
+	go func() {
+		defer close(doneC)
+		if err := withFileList(ctx, run); err != nil {
+			logger.G().Error("%v", err)
+		}
+	}()
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			stop()
+		case <-doneC:
+			return
+		}
+	}()
+	<-doneC
 }
 
 var errNoFiles = errors.New("no files")
 
-func run(fs []io.ReadSeeker) error {
+func run(ctx context.Context, fs []io.ReadSeeker) error {
 	if len(fs) < 1 {
 		return errNoFiles
 	}
@@ -132,13 +151,13 @@ func run(fs []io.ReadSeeker) error {
 		fs,
 		joiner.RelationListToLocationList(jKey.RelationList),
 		*delim,
-	).Build()
+	).Build(ctx)
 	if err != nil {
 		return err
 	}
 	sel := joiner.NewSelector(cache)
 	join := joiner.New(joiner.NewRelationJoiner(cache))
-	for row := range join.Join(jKey) {
+	for row := range join.Join(ctx, jKey) {
 		line, err := sel.Select(tgt, row.Sorted())
 		if err != nil {
 			logger.G().Error("Failed to select: %v, %v", err, row)
@@ -149,7 +168,7 @@ func run(fs []io.ReadSeeker) error {
 	return nil
 }
 
-func withFileList(callback func(data []io.ReadSeeker) error) error {
+func withFileList(ctx context.Context, callback func(context.Context, []io.ReadSeeker) error) error {
 	list := flag.Args()
 	switch len(list) {
 	case 0:
@@ -165,7 +184,7 @@ func withFileList(callback func(data []io.ReadSeeker) error) error {
 			return err
 		}
 		defer f.Close()
-		return callback([]io.ReadSeeker{stdin, f})
+		return callback(ctx, []io.ReadSeeker{stdin, f})
 	default:
 		var (
 			stdin *temporary.File
@@ -190,7 +209,7 @@ func withFileList(callback func(data []io.ReadSeeker) error) error {
 		if stdin != nil {
 			fs = append([]io.ReadSeeker{stdin}, fs...)
 		}
-		return callback(fs)
+		return callback(ctx, fs)
 	}
 }
 
