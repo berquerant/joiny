@@ -88,6 +88,8 @@ type cacheBuilder struct {
 	locationList []Location
 }
 
+var ErrInvalidKey = errors.New("InvalidKey")
+
 const cacheBuilderThread = 4
 
 func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
@@ -121,7 +123,9 @@ func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 		ck := ck
 		key := c.keyFunc(ck.col)
 		if !slicing.InRange(c.dataList, ck.src) {
-			return nil, fmt.Errorf("Build Cache: index out of range %v, data len %d", ck, len(c.dataList))
+			return nil, fmt.Errorf("Build Cache: %w failed to get index %d (source %d), source len %d ck %v",
+				ErrInvalidKey, ck.src, ck.src+1, len(c.dataList), ck,
+			)
 		}
 		data := c.dataList[ck.src]
 		eg.Go(func() error {
@@ -160,7 +164,7 @@ func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 	}, nil
 }
 
-var ErrInvalidKey = errors.New("invalid key")
+var ErrNewKeyFailure = errors.New("NewKeyFailure")
 
 func (c *cacheBuilder) keyFunc(col int) KeyFunc {
 	return func(v string) (string, error) {
@@ -168,6 +172,6 @@ func (c *cacheBuilder) keyFunc(col int) KeyFunc {
 		if col >= 0 && col < len(ss) {
 			return ss[col], nil
 		}
-		return "", fmt.Errorf("Build cache: %w col %d delim %s line %s", ErrInvalidKey, col, c.delimiter, v)
+		return "", fmt.Errorf("Build cache: %w col %d delim %s line %s", ErrNewKeyFailure, col, c.delimiter, v)
 	}
 }

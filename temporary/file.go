@@ -25,7 +25,7 @@ func (f *File) Close() error {
 	return os.Remove(f.Name())
 }
 
-var ErrEmptyFileList = errors.New("empty file list")
+var ErrEmptyFileList = errors.New("EmptyFileList")
 
 func NewFileList(n int) (FileList, error) {
 	if n < 1 {

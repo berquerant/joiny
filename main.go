@@ -149,7 +149,7 @@ func main() {
 	os.Exit(exitCode)
 }
 
-var errNoFiles = errors.New("no files")
+var errNoFiles = errors.New("NoFiles")
 
 func run(ctx context.Context, fs []io.ReadSeeker) error {
 	if len(fs) < 1 {

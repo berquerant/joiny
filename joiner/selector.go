@@ -11,13 +11,13 @@ import (
 	"github.com/berquerant/logger"
 )
 
-var ErrOutOfRange = errors.New("out of range")
+var ErrInvalidRange = errors.New("InvalidRange")
 
 func SelectColumnsByRange(rng target.Range, sources [][]string) ([]string, error) {
 	left, right := rng.Ends()
 	left, right = left.Add(-1, -1), right.Add(-1, -1) // zero-based
 	if !(slicing.InRange(sources, left.Src) && slicing.InRange(sources, right.Src-1)) {
-		return nil, fmt.Errorf("Select range: %w %v sources len %d", ErrOutOfRange, rng, len(sources))
+		return nil, fmt.Errorf("Select range: %w target %v, sources len %d", ErrInvalidRange, rng, len(sources))
 	}
 
 	srcs := sources[left.Src:right.Src]
@@ -80,7 +80,7 @@ func (s *selector) Select(tgt *target.Target, items []SelectItem) (string, error
 	for i, item := range items {
 		srcs, found := s.cache.GetBySrc(item.Source())
 		if !found {
-			return "", fmt.Errorf("Select: %w %v", ErrOutOfRange, item)
+			return "", fmt.Errorf("Select: %w %v", ErrInvalidRange, item)
 		}
 		src := srcs[0]
 		scanned, err := src.Read(item.Item())

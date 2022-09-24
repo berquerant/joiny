@@ -63,7 +63,7 @@ func TestSelectColumnsByRange(t *testing.T) {
 
 	t.Run("out of range", func(t *testing.T) {
 		_, err := joiner.SelectColumnsByRange(target.NewSingle(target.NewLocation(10, 1)), matrix)
-		assert.ErrorIs(t, err, joiner.ErrOutOfRange)
+		assert.ErrorIs(t, err, joiner.ErrInvalidRange)
 	})
 }
 
