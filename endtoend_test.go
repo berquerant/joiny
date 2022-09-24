@@ -70,13 +70,13 @@ Accounting,1a
 		},
 		{
 			title: "join accounts from stdin no changes",
-			args:  []string{},
+			args:  []string{"-x"},
 			stdin: bytes.NewBufferString(accounts),
 			want:  strings.Split(strings.TrimRight(accounts, "\n"), "\n"),
 		},
 		{
 			title: "join accounts from stdin no changes with target",
-			args:  []string{"-t", "1.2"},
+			args:  []string{"-x", "-t", "1.2"},
 			stdin: bytes.NewBufferString(accounts),
 			want: []string{
 				"account1",

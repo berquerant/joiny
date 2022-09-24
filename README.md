@@ -57,7 +57,7 @@ $ joiny -k "1.3=2.2,2.3=3.1" account.csv department.csv department_ext.csv
 2,account2,Dev,11,Dev,Development,Development,2
 3,account3,PR,12,PR,Public Relations,Public Relations,3a
 
-Read stdin when len(files) is 1 or use -x flag, stdin is the source 1.
+Read stdin when use -x flag, stdin is the source 1.
 
 $ cat > department_ext.csv <<EOS
 Development,2
@@ -66,7 +66,7 @@ Public Relations,3a
 Marketing,1b
 Accounting,1a
 EOS
-$ joiny -d "," -k "1.3=2.2" -t "2.1,1.1,2.3" department.csv < account.csv | joiny -d "," -k "1.3=2.1" -t "1.1-,2.2" department_ext.csv
+$ joiny -x -d "," -k "1.3=2.2" -t "2.1,1.1,2.3" department.csv < account.csv | joiny -x -d "," -k "1.3=2.1" -t "1.1-,2.2" department_ext.csv
 10,1,Human Resources,2b
 11,2,Development,2
 10,4,Human Resources,2b

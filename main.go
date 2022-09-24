@@ -73,7 +73,7 @@ $ joiny -k "1.3=2.2,2.3=3.1" account.csv department.csv department_ext.csv
 2,account2,Dev,11,Dev,Development,Development,2
 3,account3,PR,12,PR,Public Relations,Public Relations,3a
 
-Read stdin when no files or use -x flag, stdin is the source 1.
+Read stdin when use -x flag, stdin is the source 1.
 
 $ cat > department_ext.csv <<EOS
 Development,2
@@ -132,16 +132,12 @@ func main() {
 			}
 		}()
 
-		go func() {
-			select {
-			case <-ctx.Done():
-				stop()
-			case <-doneC:
-				return
-			}
-		}()
+		select {
+		case <-ctx.Done():
+			stop()
+		case <-doneC:
+		}
 
-		<-doneC
 		if isError {
 			return 1
 		}
@@ -150,11 +146,13 @@ func main() {
 	os.Exit(exitCode)
 }
 
-var errNoFiles = errors.New("NoFiles")
+var (
+	errNoSources = errors.New("NoSources")
+)
 
 func run(ctx context.Context, fs []io.ReadSeeker) error {
 	if len(fs) < 1 {
-		return errNoFiles
+		return errNoSources
 	}
 	jKey, err := parseKey(len(fs))
 	if err != nil {
@@ -196,12 +194,14 @@ func withFileList(ctx context.Context, callback func(context.Context, []io.ReadS
 
 	switch len(list) {
 	case 0:
-		stdin, err := stdinToTempFile()
-		if err != nil {
-			return err
+		if *readStdin {
+			stdin, err := stdinToTempFile()
+			if err != nil {
+				return err
+			}
+			defer stdin.Close()
+			add(stdin)
 		}
-		defer stdin.Close()
-		add(stdin)
 	default:
 		var (
 			stdin *temporary.File
