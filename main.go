@@ -73,7 +73,7 @@ $ joiny -k "1.3=2.2,2.3=3.1" account.csv department.csv department_ext.csv
 2,account2,Dev,11,Dev,Development,Development,2
 3,account3,PR,12,PR,Public Relations,Public Relations,3a
 
-Read stdin when len(files) is 1 or use -x flag, stdin is the source 1.
+Read stdin when no files or use -x flag, stdin is the source 1.
 
 $ cat > department_ext.csv <<EOS
 Development,2
@@ -82,7 +82,7 @@ Public Relations,3a
 Marketing,1b
 Accounting,1a
 EOS
-$ joiny -d "," -k "1.3=2.2" -t "2.1,1.1,2.3" department.csv < account.csv | joiny -d "," -k "1.3=2.1" -t "1.1-,2.2" department_ext.csv
+$ joiny -x -d "," -k "1.3=2.2" -t "2.1,1.1,2.3" department.csv < account.csv | joiny -x -d "," -k "1.3=2.1" -t "1.1-,2.2" department_ext.csv
 10,1,Human Resources,2b
 11,2,Development,2
 10,4,Human Resources,2b
@@ -140,6 +140,7 @@ func main() {
 				return
 			}
 		}()
+
 		<-doneC
 		if isError {
 			return 1
@@ -185,22 +186,22 @@ func run(ctx context.Context, fs []io.ReadSeeker) error {
 }
 
 func withFileList(ctx context.Context, callback func(context.Context, []io.ReadSeeker) error) error {
-	list := flag.Args()
+	var (
+		list     = flag.Args()
+		fileList []io.ReadSeeker
+		add      = func(r io.ReadSeeker) {
+			fileList = append(fileList, r)
+		}
+	)
+
 	switch len(list) {
 	case 0:
-		return errNoFiles
-	case 1:
 		stdin, err := stdinToTempFile()
 		if err != nil {
 			return err
 		}
 		defer stdin.Close()
-		f, err := os.Open(list[0])
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		return callback(ctx, []io.ReadSeeker{stdin, f})
+		add(stdin)
 	default:
 		var (
 			stdin *temporary.File
@@ -211,22 +212,19 @@ func withFileList(ctx context.Context, callback func(context.Context, []io.ReadS
 				return err
 			}
 			defer stdin.Close()
+			add(stdin)
 		}
-
-		fs := make([]io.ReadSeeker, len(list))
-		for i, x := range list {
+		for _, x := range list {
 			f, err := os.Open(x)
 			if err != nil {
 				return err
 			}
 			defer f.Close()
-			fs[i] = f
+			add(f)
 		}
-		if stdin != nil {
-			fs = append([]io.ReadSeeker{stdin}, fs...)
-		}
-		return callback(ctx, fs)
 	}
+
+	return callback(ctx, fileList)
 }
 
 func stdinToTempFile() (*temporary.File, error) {
@@ -274,6 +272,9 @@ func parseKey(n int) (*joinkey.JoinKey, error) {
 func getKey(n int) string {
 	if *key != "" {
 		return *key
+	}
+	if n == 1 { // identity join
+		return "1.1=1.1"
 	}
 	ss := make([]string, n-1)
 	for i := range ss {
