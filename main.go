@@ -111,26 +111,42 @@ var (
 func main() {
 	flag.Usage = Usage
 	flag.Parse()
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
 
-	doneC := make(chan struct{})
-	go func() {
-		defer close(doneC)
-		if err := withFileList(ctx, run); err != nil {
-			logger.G().Error("%v", err)
-		}
-	}()
+	exitCode := func() int {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
 
-	go func() {
-		select {
-		case <-ctx.Done():
-			stop()
-		case <-doneC:
-			return
+		var isError bool
+		logger.G().(logger.Proxy).Second().Append(func(ev logger.Event) (logger.Event, error) {
+			if ev.Level() == logger.Lerror {
+				isError = true
+			}
+			return ev, nil
+		})
+
+		doneC := make(chan struct{})
+		go func() {
+			defer close(doneC)
+			if err := withFileList(ctx, run); err != nil {
+				logger.G().Error("%v", err)
+			}
+		}()
+
+		go func() {
+			select {
+			case <-ctx.Done():
+				stop()
+			case <-doneC:
+				return
+			}
+		}()
+		<-doneC
+		if isError {
+			return 1
 		}
+		return 0
 	}()
-	<-doneC
+	os.Exit(exitCode)
 }
 
 var errNoFiles = errors.New("no files")
