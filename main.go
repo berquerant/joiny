@@ -192,36 +192,22 @@ func withFileList(ctx context.Context, callback func(context.Context, []io.ReadS
 		}
 	)
 
-	switch len(list) {
-	case 0:
-		if *readStdin {
-			stdin, err := stdinToTempFile()
-			if err != nil {
-				return err
-			}
-			defer stdin.Close()
-			add(stdin)
+	if *readStdin {
+		stdin, err := stdinToTempFile()
+		if err != nil {
+			return err
 		}
-	default:
-		var (
-			stdin *temporary.File
-			err   error
-		)
-		if *readStdin {
-			if stdin, err = stdinToTempFile(); err != nil {
-				return err
-			}
-			defer stdin.Close()
-			add(stdin)
+		defer stdin.Close()
+		add(stdin)
+	}
+
+	for _, x := range list {
+		f, err := os.Open(x)
+		if err != nil {
+			return err
 		}
-		for _, x := range list {
-			f, err := os.Open(x)
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-			add(f)
-		}
+		defer f.Close()
+		add(f)
 	}
 
 	return callback(ctx, fileList)
