@@ -42,46 +42,56 @@ type Index interface {
 	AllItems(ctx context.Context) <-chan Item
 }
 
-func NewIndex(ctx context.Context, data async.ReadSeeker, key KeyFunc) (Index, error) {
-	s := &index{
-		data: data,
-		key:  key,
-		val:  make(map[string][]Item),
-	}
-	if err := s.init(ctx); err != nil {
-		return nil, err
-	}
-	return s, nil
-}
-
 type index struct {
 	data async.ReadSeeker
 	key  KeyFunc
 	val  itemListMap
 }
 
-func (idx *index) init(ctx context.Context) error {
-	return idx.data.Do(func(data io.ReadSeeker) error {
+type IndexLoader interface {
+	Load(ctx context.Context, key ...KeyFunc) ([]Index, error)
+}
+
+func NewIndexLoader(data async.ReadSeeker) IndexLoader {
+	return &indexLoader{
+		data: data,
+	}
+}
+
+type indexLoader struct {
+	data async.ReadSeeker
+}
+
+func (ldr *indexLoader) Load(ctx context.Context, key ...KeyFunc) ([]Index, error) {
+	logger.G().Debug("IndexLoader: begin, %d indexes", len(key))
+
+	vals := make([]itemListMap, len(key))
+	for i := range vals {
+		vals[i] = make(map[string][]Item)
+	}
+
+	if err := ldr.data.Do(func(data io.ReadSeeker) error {
 		if _, err := data.Seek(0, os.SEEK_SET); err != nil {
-			return fmt.Errorf("Index init: %w", err)
+			return fmt.Errorf("init: %w", err)
 		}
 
 		var (
 			offset    int64
 			isEOF     bool
 			lineCount int
-			itemCount int
+			itemCount = make([]int, len(key))
+			keySize   = make([]int, len(key))
 			startAt   = time.Now()
 			r         = bufio.NewReader(data)
 		)
 		for !isEOF {
 			if async.Done(ctx) {
-				return fmt.Errorf("Index init: %w", ctx.Err())
+				return fmt.Errorf("load: %w", ctx.Err())
 			}
 			line, err := r.ReadBytes('\n')
 			isEOF = errors.Is(err, io.EOF)
 			if err != nil && !isEOF {
-				return fmt.Errorf("Index init: offset %d %w", offset, err)
+				return fmt.Errorf("read: offset %d %w", offset, err)
 			}
 
 			lineCount++
@@ -92,21 +102,41 @@ func (idx *index) init(ctx context.Context) error {
 				continue
 			}
 
-			key, err := idx.key(lineStr) // generate index key
-			if err != nil {
-				return fmt.Errorf("Index init: %s offset %d %w", lineStr, offset, err)
+			for i, kf := range key {
+				k, err := kf(lineStr)
+				if err != nil {
+					return fmt.Errorf("key[%d]: %s offset %d %w", i, lineStr, offset, err)
+				}
+				kSize := len(k)
+				logger.G().Debug("IndexLoader: new item[%d] (%s): size %d offset %d keySize %d key %s",
+					i, lineStr, size, offset, kSize, k,
+				)
+				vals[i].add(k, NewItem(k, offset, size))
+				itemCount[i]++
+				keySize[i] += kSize
 			}
-			logger.G().Debug("New Item: key %s line %s offset %d size %d", key, lineStr, offset, size)
-			// record the word and it's offset of the head of the line
-			idx.val.add(key, NewItem(key, offset, size))
 			offset += int64(size)
-			itemCount++
 		}
-		logger.G().Debug("Index init: done, read %d bytes %d lines %d keys %d items %s elapsed",
-			offset, lineCount, len(idx.val), itemCount, time.Since(startAt),
-		)
+
+		for i, ic := range itemCount {
+			logger.G().Debug("IndexLoader: done, key[%d] %d bytes for key, %d items", i, keySize[i], ic)
+		}
+		logger.G().Debug("IndexLoader: done, read %d bytes %d keys %d lines %s elapsed",
+			offset, len(vals[0]), lineCount, time.Since(startAt))
 		return nil
-	})
+	}); err != nil {
+		return nil, fmt.Errorf("IndexLoader: %w", err)
+	}
+
+	indexList := make([]Index, len(vals))
+	for i, val := range vals {
+		indexList[i] = &index{
+			data: ldr.data,
+			key:  key[i],
+			val:  val,
+		}
+	}
+	return indexList, nil
 }
 
 func (idx *index) KeyFunc() KeyFunc { return idx.key }

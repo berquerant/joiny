@@ -104,9 +104,14 @@ func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 		}
 	}
 	cacheKeyList = slicing.Uniq(cacheKeyList, func(v cacheKey) cacheKey { return v })
+	logger.G().Debug("BuilderBuildCache: unique locations %d", len(cacheKeyList))
 	defer func() {
 		logger.G().Debug("BuilderBuildCache: end, caches %d elapsed %s", len(cacheKeyList), time.Since(startAt))
 	}()
+	srcToCacheKeyList := make(map[int][]cacheKey)
+	for _, ck := range cacheKeyList {
+		srcToCacheKeyList[ck.src] = append(srcToCacheKeyList[ck.src], ck)
+	}
 
 	type resItem struct {
 		key cacheKey
@@ -119,26 +124,32 @@ func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 	)
 	eg.SetLimit(cacheBuilderThread)
 
-	for _, ck := range cacheKeyList {
-		ck := ck
-		key := c.keyFunc(ck.col)
-		if !slicing.InRange(c.dataList, ck.src) {
+	for src, ckList := range srcToCacheKeyList {
+		src := src
+		ckList := ckList
+		if !slicing.InRange(c.dataList, src) {
 			return nil, fmt.Errorf("Build Cache: %w failed to get index %d (source %d), source len %d ck %v",
-				ErrInvalidKey, ck.src, ck.src+1, len(c.dataList), ck,
+				ErrInvalidKey, src, src+1, len(c.dataList), ckList,
 			)
 		}
-		data := c.dataList[ck.src]
+		data := c.dataList[src]
+		keyFuncList := make([]KeyFunc, len(ckList))
+		for i, ck := range ckList {
+			keyFuncList[i] = c.keyFunc(ck.col)
+		}
+
 		eg.Go(func() error {
-			logger.G().Debug("Build Cache: begin %v", ck)
-			// need lock because seek the file
-			idx, err := NewIndex(ctx, data, key)
-			logger.G().Debug("Build Cache: end %v", ck)
+			logger.G().Debug("Build Cache: begin %v", ckList)
+			indexList, err := NewIndexLoader(data).Load(ctx, keyFuncList...)
+			logger.G().Debug("Build cache: end %v", ckList)
 			if err != nil {
-				return fmt.Errorf("Build Cache: %w loc %v", err, ck)
+				return fmt.Errorf("Build Cache: %w loc %v", err, ckList)
 			}
-			resC <- &resItem{
-				key: ck,
-				idx: idx,
+			for i, idx := range indexList {
+				resC <- &resItem{
+					key: ckList[i],
+					idx: idx,
+				}
 			}
 			return nil
 		})

@@ -26,12 +26,13 @@ k2 v4
 	if _, err := f.Write([]byte(content)); err != nil {
 		t.Fatalf("write to tmp file %v", err)
 	}
-	index, err := joiner.NewIndex(context.TODO(), async.NewReadSeeker(f), func(val string) (string, error) {
+	indexes, err := joiner.NewIndexLoader(async.NewReadSeeker(f)).Load(context.TODO(), func(val string) (string, error) {
 		return strings.Split(val, " ")[0], nil
 	})
 	if err != nil {
 		t.Fatalf("new index %v", err)
 	}
+	index := indexes[0]
 
 	for _, tc := range []struct {
 		title string
