@@ -43,9 +43,19 @@ type Index interface {
 }
 
 type index struct {
-	data async.ReadSeeker
+	data async.CachedReader
 	key  KeyFunc
 	val  itemListMap
+}
+
+const indexDataCacheSize = 1024
+
+func newIndex(data async.CachedReader, key KeyFunc, val itemListMap) Index {
+	return &index{
+		data: data,
+		key:  key,
+		val:  val,
+	}
 }
 
 type IndexLoader interface {
@@ -130,8 +140,12 @@ func (ldr *indexLoader) Load(ctx context.Context, key ...KeyFunc) ([]Index, erro
 
 	indexList := make([]Index, len(vals))
 	for i, val := range vals {
+		c, err := async.NewCachedReader(indexDataCacheSize, ldr.data)
+		if err != nil {
+			return nil, fmt.Errorf("IndexLoader: %w", err)
+		}
 		indexList[i] = &index{
-			data: ldr.data,
+			data: c,
 			key:  key[i],
 			val:  val,
 		}
@@ -147,23 +161,14 @@ func (idx *index) Get(key string) ([]Item, bool) {
 }
 
 func (idx *index) Read(item Item) (ScannedItem, error) {
-	var result ScannedItem
-	if err := idx.data.Do(func(data io.ReadSeeker) error {
-		if _, err := data.Seek(item.Offset(), os.SEEK_SET); err != nil {
-			return fmt.Errorf("Read index: key %s offset %d %w", item.Key(), item.Offset(), err)
-		}
-		b := make([]byte, item.Size())
-		if _, err := data.Read(b); err != nil {
-			return fmt.Errorf("Read index: key %s offset %d size %d %w", item.Key(), item.Offset(), item.Size(), err)
-		}
-		r := strings.TrimRight(string(b), "\n")
-		logger.G().Trace("Read Index: %v return %v", item, r)
-		result = NewScannedItem(r, item)
-		return nil
-	}); err != nil {
-		return nil, err
+	b, err := idx.data.Read(item.Offset(), item.Size())
+	if err != nil {
+		return nil, fmt.Errorf("Read Index: key %s offset %d size %d %w", item.Key(), item.Offset(), item.Size(), err)
 	}
-	return result, nil
+
+	r := strings.TrimRight(string(b), "\n")
+	logger.G().Trace("Read Index: %v return %v", item, r)
+	return NewScannedItem(r, item), nil
 }
 
 func (idx *index) Scan(ctx context.Context) <-chan ScannedItem {

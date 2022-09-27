@@ -3,7 +3,8 @@ module github.com/berquerant/joiny
 go 1.19
 
 require (
-	github.com/berquerant/logger v0.1.0
+	github.com/berquerant/cache v0.1.1
+	github.com/berquerant/logger v0.1.1
 	github.com/berquerant/ybase v0.2.0
 	github.com/google/go-cmp v0.5.9
 	github.com/stretchr/testify v1.8.0
