@@ -117,12 +117,13 @@ func main() {
 		defer stop()
 
 		var isError bool
-		logger.G().(logger.Proxy).Second().Append(func(ev logger.Event) (logger.Event, error) {
-			if ev.Level() == logger.Lerror {
-				isError = true
-			}
-			return ev, nil
-		})
+		logger.G().(logger.Proxy).Append(logger.NewMapperList(
+			func(ev logger.Event) (logger.Event, error) {
+				if ev.Level() == logger.Lerror {
+					isError = true
+				}
+				return ev, nil
+			}))
 
 		doneC := make(chan struct{})
 		go func() {

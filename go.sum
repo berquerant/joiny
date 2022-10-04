@@ -4,6 +4,8 @@ github.com/berquerant/logger v0.1.0 h1:Pzid3k1pOxCygqwcsIAW+T93XPV1b6HCb/ZMbvacT
 github.com/berquerant/logger v0.1.0/go.mod h1:EHiLTpqEWiSJiWB+94bXTe3QN5g5rmKg+cDXq5a9LOk=
 github.com/berquerant/logger v0.1.1 h1:phESnHBsygYfyx/KnpLmIDLiuCbCP8b4mUtc+mlhK+U=
 github.com/berquerant/logger v0.1.1/go.mod h1:EHiLTpqEWiSJiWB+94bXTe3QN5g5rmKg+cDXq5a9LOk=
+github.com/berquerant/logger v0.2.0 h1:mdZ/IOYLkmWVTJH58c9BjAnaPEo1u62IBK8wTRxgWME=
+github.com/berquerant/logger v0.2.0/go.mod h1:EHiLTpqEWiSJiWB+94bXTe3QN5g5rmKg+cDXq5a9LOk=
 github.com/berquerant/ybase v0.2.0 h1:JkTrR/mQP80Oz7oLCfQz1szCgxrYInsnxSAcMlUirA0=
 github.com/berquerant/ybase v0.2.0/go.mod h1:kCC3JFKkhyoTdpZUvx+1BVg4MlAoT1lPrfoUWYxL+2w=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
