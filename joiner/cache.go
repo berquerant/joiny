@@ -70,7 +70,7 @@ func RelationListToLocationList(relationList []*joinkey.Relation) []Location {
 	return r
 }
 
-func NewCacheBuilder(dataList []io.ReadSeeker, locationList []Location, delimiter string) CacheBuilder {
+func NewCacheBuilder(dataList []io.ReadSeeker, locationList []Location, delimiter string, limit int) CacheBuilder {
 	lockedDataList := make([]async.ReadSeeker, len(dataList))
 	for i, d := range dataList {
 		lockedDataList[i] = async.NewReadSeeker(d)
@@ -79,6 +79,7 @@ func NewCacheBuilder(dataList []io.ReadSeeker, locationList []Location, delimite
 		dataList:     lockedDataList,
 		delimiter:    delimiter,
 		locationList: locationList,
+		limit:        limit,
 	}
 }
 
@@ -86,11 +87,10 @@ type cacheBuilder struct {
 	dataList     []async.ReadSeeker
 	delimiter    string
 	locationList []Location
+	limit        int
 }
 
 var ErrInvalidKey = errors.New("InvalidKey")
-
-const cacheBuilderThread = 4
 
 func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 	logger.G().Debug("BuilderBuildCache: start, %d sources %d locations", len(c.dataList), len(c.locationList))
@@ -122,7 +122,7 @@ func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 		resC = make(chan *resItem, len(cacheKeyList))
 		eg   errgroup.Group
 	)
-	eg.SetLimit(cacheBuilderThread)
+	eg.SetLimit(c.limit)
 
 	for src, ckList := range srcToCacheKeyList {
 		src := src

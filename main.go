@@ -101,11 +101,12 @@ func Usage() {
 }
 
 var (
-	targetStr = flag.String("t", "", "target")
-	key       = flag.String("k", "", "key")
-	delim     = flag.String("d", ",", "delimiter")
-	readStdin = flag.Bool("x", false, "read stdin")
-	verbose   = flag.Int("v", 0, "verbose level")
+	targetStr  = flag.String("t", "", "target")
+	key        = flag.String("k", "", "key")
+	delim      = flag.String("d", ",", "delimiter")
+	readStdin  = flag.Bool("x", false, "read stdin")
+	loadThread = flag.Int("j", 4, "number of threads to load files")
+	verbose    = flag.Int("v", 0, "verbose level")
 )
 
 func main() {
@@ -167,6 +168,7 @@ func run(ctx context.Context, fs []io.ReadSeeker) error {
 		fs,
 		joiner.RelationListToLocationList(jKey.RelationList),
 		*delim,
+		*loadThread,
 	).Build(ctx)
 	if err != nil {
 		return err
