@@ -149,6 +149,7 @@ func TestJoiner(t *testing.T) {
 					}),
 					",",
 					-1,
+					10,
 				).Build(context.TODO())
 				if err != nil {
 					t.Fatal(err)
@@ -323,6 +324,7 @@ func TestJoiner(t *testing.T) {
 					joiner.RelationListToLocationList(tc.key.RelationList),
 					",",
 					-1,
+					10,
 				).Build(context.TODO())
 				if err != nil {
 					t.Fatal(err)

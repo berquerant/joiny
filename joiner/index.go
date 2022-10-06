@@ -48,8 +48,6 @@ type index struct {
 	val  itemListMap
 }
 
-const indexDataCacheSize = 1024
-
 func newIndex(data async.CachedReader, key KeyFunc, val itemListMap) Index {
 	return &index{
 		data: data,
@@ -62,14 +60,16 @@ type IndexLoader interface {
 	Load(ctx context.Context, key ...KeyFunc) ([]Index, error)
 }
 
-func NewIndexLoader(data async.ReadSeeker) IndexLoader {
+func NewIndexLoader(data async.ReadSeeker, indexCacheSize int) IndexLoader {
 	return &indexLoader{
-		data: data,
+		data:           data,
+		indexCacheSize: indexCacheSize,
 	}
 }
 
 type indexLoader struct {
-	data async.ReadSeeker
+	data           async.ReadSeeker
+	indexCacheSize int
 }
 
 func (ldr *indexLoader) Load(ctx context.Context, key ...KeyFunc) ([]Index, error) {
@@ -140,7 +140,7 @@ func (ldr *indexLoader) Load(ctx context.Context, key ...KeyFunc) ([]Index, erro
 
 	indexList := make([]Index, len(vals))
 	for i, val := range vals {
-		c, err := async.NewCachedReader(indexDataCacheSize, ldr.data)
+		c, err := async.NewCachedReader(ldr.indexCacheSize, ldr.data)
 		if err != nil {
 			return nil, fmt.Errorf("IndexLoader: %w", err)
 		}

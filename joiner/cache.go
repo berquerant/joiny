@@ -70,24 +70,26 @@ func RelationListToLocationList(relationList []*joinkey.Relation) []Location {
 	return r
 }
 
-func NewCacheBuilder(dataList []io.ReadSeeker, locationList []Location, delimiter string, limit int) CacheBuilder {
+func NewCacheBuilder(dataList []io.ReadSeeker, locationList []Location, delimiter string, limit, indexCacheSize int) CacheBuilder {
 	lockedDataList := make([]async.ReadSeeker, len(dataList))
 	for i, d := range dataList {
 		lockedDataList[i] = async.NewReadSeeker(d)
 	}
 	return &cacheBuilder{
-		dataList:     lockedDataList,
-		delimiter:    delimiter,
-		locationList: locationList,
-		limit:        limit,
+		dataList:       lockedDataList,
+		delimiter:      delimiter,
+		locationList:   locationList,
+		limit:          limit,
+		indexCacheSize: indexCacheSize,
 	}
 }
 
 type cacheBuilder struct {
-	dataList     []async.ReadSeeker
-	delimiter    string
-	locationList []Location
-	limit        int
+	dataList       []async.ReadSeeker
+	delimiter      string
+	locationList   []Location
+	limit          int
+	indexCacheSize int
 }
 
 var ErrInvalidKey = errors.New("InvalidKey")
@@ -140,7 +142,7 @@ func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 
 		eg.Go(func() error {
 			logger.G().Debug("Build Cache: begin %v", ckList)
-			indexList, err := NewIndexLoader(data).Load(ctx, keyFuncList...)
+			indexList, err := NewIndexLoader(data, c.indexCacheSize).Load(ctx, keyFuncList...)
 			logger.G().Debug("Build cache: end %v", ckList)
 			if err != nil {
 				return fmt.Errorf("Build Cache: %w loc %v", err, ckList)

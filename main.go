@@ -106,6 +106,7 @@ var (
 	delim      = flag.String("d", ",", "delimiter")
 	readStdin  = flag.Bool("x", false, "read stdin")
 	loadThread = flag.Int("j", 4, "number of threads to load files")
+	cacheSize  = flag.Int("c", 1024, "max cache size for index")
 	verbose    = flag.Int("v", 0, "verbose level")
 )
 
@@ -169,6 +170,7 @@ func run(ctx context.Context, fs []io.ReadSeeker) error {
 		joiner.RelationListToLocationList(jKey.RelationList),
 		*delim,
 		*loadThread,
+		*cacheSize,
 	).Build(ctx)
 	if err != nil {
 		return err
