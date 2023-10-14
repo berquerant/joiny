@@ -10,8 +10,8 @@ import (
 
 	"github.com/berquerant/joiny/async"
 	"github.com/berquerant/joiny/cc/joinkey"
+	"github.com/berquerant/joiny/logx"
 	"github.com/berquerant/joiny/slicing"
-	"github.com/berquerant/logger"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -95,7 +95,7 @@ type cacheBuilder struct {
 var ErrInvalidKey = errors.New("InvalidKey")
 
 func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
-	logger.G().Debug("BuilderBuildCache: start, %d sources %d locations", len(c.dataList), len(c.locationList))
+	logx.G().Debug("BuilderBuildCache: start", logx.I("sources", len(c.dataList)), logx.I("locations", len(c.locationList)))
 	startAt := time.Now()
 
 	cacheKeyList := make([]cacheKey, len(c.locationList))
@@ -106,9 +106,9 @@ func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 		}
 	}
 	cacheKeyList = slicing.Uniq(cacheKeyList, func(v cacheKey) cacheKey { return v })
-	logger.G().Debug("BuilderBuildCache: unique locations %d", len(cacheKeyList))
+	logx.G().Debug("BuilderBuildCache", logx.I("uniq_locations", len(cacheKeyList)))
 	defer func() {
-		logger.G().Debug("BuilderBuildCache: end, caches %d elapsed %s", len(cacheKeyList), time.Since(startAt))
+		logx.G().Debug("BuilderBuildCache: end", logx.I("caches", len(cacheKeyList)), logx.D("elapsed", time.Since(startAt)))
 	}()
 	srcToCacheKeyList := make(map[int][]cacheKey)
 	for _, ck := range cacheKeyList {
@@ -141,9 +141,9 @@ func (c *cacheBuilder) Build(ctx context.Context) (Cache, error) {
 		}
 
 		eg.Go(func() error {
-			logger.G().Debug("Build Cache: begin %v", ckList)
+			logx.G().Debug("Build Cache: begin", logx.Any("keys", ckList))
 			indexList, err := NewIndexLoader(data, c.indexCacheSize).Load(ctx, keyFuncList...)
-			logger.G().Debug("Build cache: end %v", ckList)
+			logx.G().Debug("Build cache: end", logx.Any("keys", ckList))
 			if err != nil {
 				return fmt.Errorf("Build Cache: %w loc %v", err, ckList)
 			}

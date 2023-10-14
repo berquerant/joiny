@@ -14,8 +14,8 @@ import (
 	"github.com/berquerant/joiny/cc/joinkey"
 	"github.com/berquerant/joiny/cc/target"
 	"github.com/berquerant/joiny/joiner"
+	"github.com/berquerant/joiny/logx"
 	"github.com/berquerant/joiny/temporary"
-	"github.com/berquerant/logger"
 )
 
 const usage = `Usage: joiny [flags] FILES...
@@ -118,20 +118,14 @@ func main() {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
 
-		var isError bool
-		logger.G().(logger.Proxy).Append(logger.NewMapperList(
-			func(ev logger.Event) (logger.Event, error) {
-				if ev.Level() == logger.Lerror {
-					isError = true
-				}
-				return ev, nil
-			}))
-
-		doneC := make(chan struct{})
+		var (
+			doneC = make(chan struct{})
+			err   error
+		)
 		go func() {
 			defer close(doneC)
-			if err := withFileList(ctx, run); err != nil {
-				logger.G().Error("%v", err)
+			if err = withFileList(ctx, run); err != nil {
+				logx.G().Error("got error", logx.Err(err))
 			}
 		}()
 
@@ -141,7 +135,7 @@ func main() {
 		case <-doneC:
 		}
 
-		if isError {
+		if err != nil {
 			return 1
 		}
 		return 0
@@ -180,7 +174,7 @@ func run(ctx context.Context, fs []io.ReadSeeker) error {
 	for row := range join.Join(ctx, jKey) {
 		line, err := sel.Select(tgt, row.Sorted())
 		if err != nil {
-			logger.G().Error("Failed to select: %v, %v", err, row)
+			logx.G().Error("Failed to select", logx.Err(err), logx.Any("row", row))
 			continue
 		}
 		fmt.Println(line)

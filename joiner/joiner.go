@@ -7,7 +7,7 @@ import (
 
 	"github.com/berquerant/joiny/async"
 	"github.com/berquerant/joiny/cc/joinkey"
-	"github.com/berquerant/logger"
+	"github.com/berquerant/joiny/logx"
 	"golang.org/x/exp/slices"
 )
 
@@ -74,12 +74,12 @@ func (r *relationJoiner) FullJoin(ctx context.Context, rel *joinkey.Relation) <-
 		lKey, rKey := rel.Left.Add(-1, -1), rel.Right.Add(-1, -1)
 		lIndex, ok := r.cache.Get(lKey.Src, lKey.Col)
 		if !ok {
-			logger.G().Warn("FullJoin: left index not found: %v", lKey)
+			logx.G().Warn("FullJoin: left index not found", logx.Any("key", lKey))
 			return
 		}
 		rIndex, ok := r.cache.Get(rKey.Src, rKey.Col)
 		if !ok {
-			logger.G().Warn("FullJoin: right index not found: %v", rKey)
+			logx.G().Warn("FullJoin: right index not found", logx.Any("key", rKey))
 			return
 		}
 
@@ -97,7 +97,7 @@ func (r *relationJoiner) FullJoin(ctx context.Context, rel *joinkey.Relation) <-
 				}
 				l := list.Clone()
 				l.Set(NewSelectItem(rKey.Src, rItem))
-				logger.G().Debug("FullJoin: %v %v %v", lKey, rKey, l)
+				logx.G().Debug("FullJoin", logx.Any("left", lKey), logx.Any("right", rKey), logx.Any("list", l))
 				resultC <- l
 			}
 		}
@@ -117,12 +117,12 @@ func (r *relationJoiner) Join(ctx context.Context, rel *joinkey.Relation, rowC <
 		lKey, rKey := rel.Left.Add(-1, -1), rel.Right.Add(-1, -1) // into zero-based
 		lIndex, ok := r.cache.Get(lKey.Src, lKey.Col)
 		if !ok {
-			logger.G().Warn("Join: left index not found: %v", lKey)
+			logx.G().Warn("Join: left index not found", logx.Any("key", lKey))
 			return
 		}
 		rIndex, ok := r.cache.Get(rKey.Src, rKey.Col)
 		if !ok {
-			logger.G().Warn("Join: right index not found: %v", rKey)
+			logx.G().Warn("Join: right index not found", logx.Any("key", rKey))
 			return
 		}
 
@@ -135,14 +135,14 @@ func (r *relationJoiner) Join(ctx context.Context, rel *joinkey.Relation, rowC <
 				return
 			}
 			baseInfo := fmt.Sprintf("lkey %v rkey %v row %v", lKey, rKey, row)
-			logger.G().Debug("Join check: %s", baseInfo)
+			logx.G().Debug("Join check", logx.S("info", baseInfo))
 
 			if isTop {
 				isTop = false
 				sources = row.Keys()
 			} else if !slices.Equal(row.Keys(), sources) {
 				// all rows should consist of the same sources
-				logger.G().Error("Join: Inconsistent rows, want %+v got %+v, %s", sources, row.Keys(), baseInfo)
+				logx.G().Error("Join: Inconsistent rows", logx.II("want", sources), logx.II("got", row.Keys()), logx.S("info", baseInfo))
 				return
 			}
 
@@ -153,12 +153,12 @@ func (r *relationJoiner) Join(ctx context.Context, rel *joinkey.Relation, rowC <
 			case lExist && !rExist:
 				lScanned, err := lIndex.Read(lRow.Item())
 				if err != nil {
-					logger.G().Debug("Join: left read %v, %s", err, baseInfo)
+					logx.G().Debug("Join: left read", logx.Err(err), logx.S("info", baseInfo))
 					continue
 				}
 				key, err := lIndex.KeyFunc()(lScanned.Line())
 				if err != nil {
-					logger.G().Debug("Join: left key %v, %s", err, baseInfo)
+					logx.G().Debug("Join: left key", logx.Err(err), logx.S("info", baseInfo))
 					continue
 				}
 				rItemList, ok := rIndex.Get(key)
@@ -168,20 +168,23 @@ func (r *relationJoiner) Join(ctx context.Context, rel *joinkey.Relation, rowC <
 				for _, rItem := range rItemList {
 					l := row.Clone()
 					l.Set(NewSelectItem(rKey.Src, rItem))
-					logger.G().Debug("Join: from left lrow %v lline %s key %s ritem %+v, %s",
-						lRow, lScanned.Line(), key, rItem, baseInfo,
+					logx.G().Debug("Join: from left",
+						logx.Group("left", logx.Any("row", lRow), logx.S("line", lScanned.Line())),
+						logx.S("key", key),
+						logx.Group("right", logx.Any("item", rItem)),
+						logx.S("info", baseInfo),
 					)
 					resultC <- l
 				}
 			case !lExist && rExist:
 				rScanned, err := rIndex.Read(rRow.Item())
 				if err != nil {
-					logger.G().Debug("Join: right read %v, %s", err, baseInfo)
+					logx.G().Debug("Join: right read", logx.Err(err), logx.S("info", baseInfo))
 					continue
 				}
 				key, err := rIndex.KeyFunc()(rScanned.Line())
 				if err != nil {
-					logger.G().Debug("Join: right key %v, %s", err, baseInfo)
+					logx.G().Debug("Join: right key", logx.Err(err), logx.S("info", baseInfo))
 					continue
 				}
 				lItemList, ok := lIndex.Get(key)
@@ -191,40 +194,52 @@ func (r *relationJoiner) Join(ctx context.Context, rel *joinkey.Relation, rowC <
 				for _, lItem := range lItemList {
 					l := row.Clone()
 					l.Set(NewSelectItem(lKey.Src, lItem))
-					logger.G().Debug("Join: from right rrow %v rline %s key %s litem %+v, %s",
-						rRow, rScanned.Line(), key, lItem, baseInfo,
+					logx.G().Debug("Join: from right",
+						logx.Group("right", logx.Any("row", rRow), logx.S("line", rScanned.Line())),
+						logx.S("key", key),
+						logx.Group("left", logx.Any("item", lItem)),
+						logx.S("info", baseInfo),
 					)
 					resultC <- l
 				}
 			case lExist && rExist:
 				lScanned, err := lIndex.Read(lRow.Item())
 				if err != nil {
-					logger.G().Debug("Join: row left read %v, %s", err, baseInfo)
+					logx.G().Debug("Join: row left read", logx.Err(err), logx.S("info", baseInfo))
 					continue
 				}
 				lk, err := lIndex.KeyFunc()(lScanned.Line())
 				if err != nil {
-					logger.G().Debug("Join: row left key %v, %s", err, baseInfo)
+					logx.G().Debug("Join: row left key", logx.Err(err), logx.S("info", baseInfo))
 					continue
 				}
 				rScanned, err := rIndex.Read(rRow.Item())
 				if err != nil {
-					logger.G().Debug("Join: row right read %v, %s", err, baseInfo)
+					logx.G().Debug("Join: row right read", logx.Err(err), logx.S("info", baseInfo))
 					continue
 				}
 				rk, err := rIndex.KeyFunc()(rScanned.Line())
 				if err != nil {
-					logger.G().Debug("Join: row right key %v, %s", err, baseInfo)
+					logx.G().Debug("Join: row right key", logx.Err(err), logx.S("info", baseInfo))
 					continue
 				}
-				logger.G().Debug("Join: row lrow %v rrow %v lline %s rline %s lk %s rk %s",
-					lRow, rRow, lScanned.Line(), rScanned.Line(), lk, rk,
+				logx.G().Debug("Join: row",
+					logx.Group("left",
+						logx.Any("row", lRow),
+						logx.S("line", lScanned.Line()),
+						logx.S("key", lk),
+					),
+					logx.Group("right",
+						logx.Any("row", rRow),
+						logx.S("line", rScanned.Line()),
+						logx.S("key", rk),
+					),
 				)
 				if lk == rk {
 					resultC <- row
 				}
 			default:
-				logger.G().Warn("Join: no rows found, %s", baseInfo)
+				logx.G().Warn("Join: no rows found", logx.S("info", baseInfo))
 			}
 		}
 	}()
@@ -247,7 +262,7 @@ type joinerImpl struct {
 
 func (j *joinerImpl) Join(ctx context.Context, key *joinkey.JoinKey) <-chan SelectItemList {
 	if len(key.RelationList) == 0 {
-		logger.G().Error("Joiner: empty key")
+		logx.G().Error("Joiner: empty key")
 		resultC := make(chan SelectItemList)
 		close(resultC)
 		return resultC

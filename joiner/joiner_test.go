@@ -10,8 +10,8 @@ import (
 	"github.com/berquerant/joiny/cc/joinkey"
 	"github.com/berquerant/joiny/cc/target"
 	"github.com/berquerant/joiny/joiner"
+	"github.com/berquerant/joiny/logx"
 	"github.com/berquerant/joiny/temporary"
-	"github.com/berquerant/logger"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,8 +54,8 @@ func (m *multiSourceGenerator) readSeekers() []io.ReadSeeker {
 
 func TestJoiner(t *testing.T) {
 	if testing.Verbose() {
-		logger.G().SetLevel(logger.Ltrace)
-		defer logger.G().SetLevel(logger.Linfo)
+		logx.G().SetLevel(logx.Ltrace)
+		defer logx.G().SetLevel(logx.Linfo)
 	}
 
 	t.Run("full join", func(t *testing.T) {

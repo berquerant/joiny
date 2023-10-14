@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/berquerant/joiny/cc/target"
+	"github.com/berquerant/joiny/logx"
 	"github.com/berquerant/joiny/slicing"
-	"github.com/berquerant/logger"
 )
 
 var ErrInvalidRange = errors.New("InvalidRange")
@@ -93,6 +93,11 @@ func (s *selector) Select(tgt *target.Target, items []SelectItem) (string, error
 	if err != nil {
 		return "", fmt.Errorf("Select: %w", err)
 	}
-	logger.G().Debug("Select: %v %v %v return %v", items, tgt, lines, selected)
+	logx.G().Debug("Select",
+		logx.Any("items", items),
+		logx.Any("target", tgt),
+		logx.Any("lines", lines),
+		logx.SS("return", selected),
+	)
 	return strings.Join(selected, s.cache.Delimiter()), nil
 }

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/berquerant/joiny/async"
-	"github.com/berquerant/logger"
+	"github.com/berquerant/joiny/logx"
 )
 
 // KeyFunc extracts a key from a line.
@@ -73,7 +73,7 @@ type indexLoader struct {
 }
 
 func (ldr *indexLoader) Load(ctx context.Context, key ...KeyFunc) ([]Index, error) {
-	logger.G().Debug("IndexLoader: begin, %d indexes", len(key))
+	logx.G().Debug("IndexLoader: begin", logx.I("index", len(key)))
 
 	vals := make([]itemListMap, len(key))
 	for i := range vals {
@@ -118,8 +118,13 @@ func (ldr *indexLoader) Load(ctx context.Context, key ...KeyFunc) ([]Index, erro
 					return fmt.Errorf("key[%d]: %s offset %d %w", i, lineStr, offset, err)
 				}
 				kSize := len(k)
-				logger.G().Debug("IndexLoader: new item[%d] (%s): size %d offset %d keySize %d key %s",
-					i, lineStr, size, offset, kSize, k,
+				logx.G().Debug("IndexLoader: new item",
+					logx.I("item", i),
+					logx.S("line", lineStr),
+					logx.I("size", size),
+					logx.I("offset", offset),
+					logx.I("keysize", kSize),
+					logx.S("key", k),
 				)
 				vals[i].add(k, NewItem(k, offset, size))
 				itemCount[i]++
@@ -129,10 +134,14 @@ func (ldr *indexLoader) Load(ctx context.Context, key ...KeyFunc) ([]Index, erro
 		}
 
 		for i, ic := range itemCount {
-			logger.G().Debug("IndexLoader: done, key[%d] %d bytes for key, %d items", i, keySize[i], ic)
+			logx.G().Debug("IndexLoader: done", logx.I("key_index", i), logx.I("size", len(key)), logx.I("item", ic))
 		}
-		logger.G().Debug("IndexLoader: done, read %d bytes %d keys %d lines %s elapsed",
-			offset, len(vals[0]), lineCount, time.Since(startAt))
+		logx.G().Debug("IndexLoader: done",
+			logx.I("bytes", offset),
+			logx.I("key", len(vals[0])),
+			logx.I("line", lineCount),
+			logx.D("elapsed", time.Since(startAt)),
+		)
 		return nil
 	}); err != nil {
 		return nil, fmt.Errorf("IndexLoader: %w", err)
@@ -167,7 +176,7 @@ func (idx *index) Read(item Item) (ScannedItem, error) {
 	}
 
 	r := strings.TrimRight(string(b), "\n")
-	logger.G().Trace("Read Index: %v return %v", item, r)
+	logx.G().Trace("Read Index", logx.Any("item", item), logx.Any("return", r))
 	return NewScannedItem(r, item), nil
 }
 
@@ -182,7 +191,7 @@ func (idx *index) Scan(ctx context.Context) <-chan ScannedItem {
 				}
 				r, err := idx.Read(item)
 				if err != nil {
-					logger.G().Error("Scan: failed to read %v, %v", item, err)
+					logx.G().Error("Scan: failed to read", logx.Any("item", item), logx.Err(err))
 					return
 				}
 				resultC <- r

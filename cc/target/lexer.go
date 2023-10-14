@@ -1,18 +1,19 @@
 package target
 
 import (
+	"fmt"
 	"io"
 	"strconv"
 	"unicode"
 
-	"github.com/berquerant/logger"
+	"github.com/berquerant/joiny/logx"
 	"github.com/berquerant/ybase"
 )
 
 func Parse(lexer *Lexer) int {
-	logger.G().Debug("Begin parse target")
+	logx.G().Debug("Begin parse target")
 	defer func() {
-		logger.G().Debug("End parse target: %v", lexer.Target)
+		logx.G().Debug("End parse target", logx.Any("target", lexer.Target))
 	}()
 	return yyParse(lexer)
 }
@@ -45,9 +46,12 @@ type Lexer struct {
 
 func NewLexer(r io.Reader) *Lexer {
 	yyErrorVerbose = true
+	debug := func(msg string, v ...any) {
+		logx.G().Debug(fmt.Sprintf(msg, v...))
+	}
 	return &Lexer{
 		Lexer: ybase.NewLexer(ybase.NewScanner(
-			ybase.NewReader(r, logger.G().Debug),
+			ybase.NewReader(r, debug),
 			ScanToken,
 		)),
 	}
@@ -71,9 +75,9 @@ func (l *Lexer) Lex(lval *yySymType) int {
 func (*Lexer) Debug(level int) {
 	switch {
 	case level > 0:
-		logger.G().SetLevel(logger.Ldebug)
+		logx.G().SetLevel(logx.Ldebug)
 		yyDebug = level
 	case level == 0:
-		logger.G().SetLevel(logger.Linfo)
+		logx.G().SetLevel(logx.Linfo)
 	}
 }
