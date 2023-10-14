@@ -17,9 +17,9 @@ import (
 // KeyFunc extracts a key from a line.
 type KeyFunc func(string) (string, error)
 
-//go:generate go run github.com/berquerant/dataclass@v0.1.0 -type Item -field "Key string,Offset int64,Size int" -output index_dataclass_item_generated.go
+//go:generate go run github.com/berquerant/dataclass@v0.3.1 -type Item -field "Key string|Offset int64|Size int" -output index_dataclass_item_generated.go
 
-//go:generate go run github.com/berquerant/dataclass@v0.1.0 -type ScannedItem -field "Line string,Item Item" -output index_dataclass_scanneditem_generated.go
+//go:generate go run github.com/berquerant/dataclass@v0.3.1 -type ScannedItem -field "Line string|Item Item" -output index_dataclass_scanneditem_generated.go
 
 type itemListMap map[string][]Item
 

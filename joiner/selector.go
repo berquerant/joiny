@@ -54,7 +54,7 @@ func SelectColumnsByTarget(tgt *target.Target, sources [][]string) ([]string, er
 	return slicing.Flat(r...), nil
 }
 
-//go:generate go run github.com/berquerant/dataclass@v0.1.0 -type SelectItem -field "Source int,Item Item" -output selector_dataclass_selectitem_generated.go
+//go:generate go run github.com/berquerant/dataclass@v0.3.1 -type SelectItem -field "Source int|Item Item" -output selector_dataclass_selectitem_generated.go
 
 type Selector interface {
 	// Select forms selected items into a line depending on the target.
