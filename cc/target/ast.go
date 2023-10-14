@@ -9,7 +9,7 @@ type Node interface {
 	IsNode()
 }
 
-//go:generate go run github.com/berquerant/marker@v0.1.2 -method IsNode -type Location,Single,Left,Right,Interval,Target -output ast_marker_node_generated.go
+//go:generate go run github.com/berquerant/marker@v0.1.4 -method IsNode -type Location,Single,Left,Right,Interval,Target -output ast_marker_node_generated.go
 
 // Location means the specified column of the specified source.
 type Location struct {
@@ -41,7 +41,7 @@ type Range interface {
 	Ends() (*Location, *Location)
 }
 
-//go:generate go run github.com/berquerant/marker@v0.1.2 -method IsRange -type Single,Left,Right,Interval -output ast_marker_range_generated.go
+//go:generate go run github.com/berquerant/marker@v0.1.4 -method IsRange -type Single,Left,Right,Interval -output ast_marker_range_generated.go
 
 // Single column.
 type Single struct {
