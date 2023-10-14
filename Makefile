@@ -52,15 +52,17 @@ generate: go-generate $(JOINKEY_GO) $(TARGET_GO)
 .PHONY: clean
 clean: clean-go-generate clean-join-key clean-target
 
+GOYACC := go run golang.org/x/tools/cmd/goyacc
+
 $(JOINKEY_GO): $(JOINKEYD)/joinkey.y
-	goyacc -o $@ -v $(JOINKEY_OUTPUT) $<
+	$(GOYACC) -o $@ -v $(JOINKEY_OUTPUT) $<
 
 .PHONY: clean-join-key
 clean-join-key:
 	rm -f $(JOINKEY_OUTPUT) $(JOINKEY_GO)
 
 $(TARGET_GO): $(TARGETD)/target.y
-	goyacc -o $@ -v $(TARGET_OUTPUT) $<
+	$(GOYACC) -o $@ -v $(TARGET_OUTPUT) $<
 
 .PHONY: clean-target
 clean-target:
