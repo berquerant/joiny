@@ -1,4 +1,41 @@
+GOMOD = go mod
+GOBUILD = go build -trimpath -race -v
+GOTEST = go test -v -cover -race
+
 ROOT = $(shell git rev-parse --show-toplevel)
+BIN = dist/joiny
+CMD = .
+
+.PHONY: $(BIN)
+$(BIN):
+	$(GOBUILD) -o $@ $(CMD)
+
+.PHONY: test
+test:
+	$(GOTEST) ./...
+
+.PHONY: init
+init:
+	$(GOMOD) tidy
+
+.PHONY: vuln
+vuln:
+	go run golang.org/x/vuln/cmd/govulncheck ./...
+
+.PHONY: vet
+vet:
+	go vet ./...
+
+DOCKER_RUN = docker run --rm -v "$(ROOT)":/usr/src/myapp -w /usr/src/myapp
+DOCKER_GO_IMAGE = golang:1.21
+
+.PHONY: docker-test
+docker-test:
+	$(DOCKER_RUN) $(DOCKER_GO_IMAGE) $(GOTEST) ./...
+
+.PHONY: docker-dist
+docker-dist:
+	$(DOCKER_RUN) $(DOCKER_GO_IMAGE) $(GOBUILD) -o $(BIN) $(CMD)
 
 CC_DIR := cc
 
@@ -9,10 +46,6 @@ JOINKEY_OUTPUT := $(JOINKEYD)/joinkey.output
 TARGETD := $(CC)/target
 TARGET_GO := $(TARGETD)/target.go
 TARGET_OUTPUT := $(TARGETD)/target.output
-
-.PHONY: test
-test:
-	go test -cover ./...
 
 .PHONY: regenarate
 regenarate: clean generate
@@ -42,7 +75,7 @@ go-regenerate: clean-go-generate go-generate
 
 .PHONY: clean-go-generate
 clean-go-generate:
-	find $(ROOT) -name "*_generated.go" -type f | xargs rm -f
+	find $(ROOT) -name "*_generated.go" -type f -delete
 
 .PHONY: go-generate
 go-generate:
