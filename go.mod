@@ -3,7 +3,7 @@ module github.com/berquerant/joiny
 go 1.21.3
 
 require (
-	github.com/berquerant/cache v0.1.1
+	github.com/berquerant/cache v0.2.0
 	github.com/berquerant/ybase v0.2.0
 	github.com/google/go-cmp v0.6.0
 	github.com/stretchr/testify v1.8.4
