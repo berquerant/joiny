@@ -1,5 +1,5 @@
 GOMOD = go mod
-GOBUILD = go build -trimpath -race -v
+GOBUILD = go build -trimpath -v
 GOTEST = go test -v -cover -race
 
 ROOT = $(shell git rev-parse --show-toplevel)
