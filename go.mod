@@ -1,6 +1,7 @@
 module github.com/berquerant/joiny
 
-go 1.21.12
+go 1.23.0
+
 require (
 	github.com/berquerant/cache v0.2.0
 	github.com/berquerant/ybase v0.4.0
