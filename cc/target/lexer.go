@@ -3,6 +3,7 @@ package target
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"strconv"
 	"unicode"
 
@@ -60,7 +61,7 @@ func NewLexer(r io.Reader) *Lexer {
 func (l *Lexer) ParseUint(value string) uint {
 	ui, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
-		l.Errorf("Cannot parse %s as uint %w", value, err)
+		l.Errorf(err, "Cannot parse", slog.String("value", value))
 		return 0
 	}
 	return uint(ui)
