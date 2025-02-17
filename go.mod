@@ -1,10 +1,9 @@
 module github.com/berquerant/joiny
 
 go 1.23.2
-
 require (
 	github.com/berquerant/cache v0.3.1
-	github.com/berquerant/ybase v0.6.3
+	github.com/berquerant/ybase v0.7.0
 	github.com/google/go-cmp v0.6.0
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/exp v0.0.0-20220921164117-439092de6870
